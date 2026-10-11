@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CASHIER
+  STORE_MANAGER
+  ADMIN
+}
+
+enum ProductCategory {
+  ENGINE_OIL
+  TRANSMISSION_FLUID
+  COOLANT
+  ACCESSORY
+  PACKAGED_GOOD
+}
+
+enum PaymentMethod {
+  CASH
+  TELEBIRR
+  CBE_BIRR
+  CARD
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum StockMovementType {
+  RECEIPT
+  SALE
+  LOSS
+  ADJUSTMENT
+  REVERSAL
+}
+
+model User {
+  id              String                @id @default(uuid()) @db.Uuid
+  name            String
+  username        String                @unique
+  passwordHash    String
+  role            Role                  @default(CASHIER)
+  active          Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  openedShifts    Shift[]               @relation("ShiftOpenedBy")
+  closedShifts    Shift[]               @relation("ShiftClosedBy")
+  sales           Sale[]
+  stockMovements  StockMovement[]
+  movementBatches StockMovementBatch[]
+  reconciliations ShiftReconciliation[]
+}
+
+model Product {
+  id              String                @id @default(uuid()) @db.Uuid
+  sku             String                @unique
+  name            String
+  brand           String?
+  category        ProductCategory
+  packageSize     String?
+  costCents       Int
+  sellingCents    Int
+  quantityOnHand  Int                   @default(0)
+  reorderLevel    Int                   @default(0)
+  active          Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  movements       StockMovement[]
+  saleItems       SaleItem[]
+  reconciliations ShiftReconciliation[]
+
+  @@index([category, active])
+  @@index([quantityOnHand, reorderLevel])
+}
+
+model Supplier {
+  id        String          @id @default(uuid()) @db.Uuid
+  name      String
+  phone     String?
+  createdAt DateTime        @default(now())
+  receipts  StockMovement[]
+  batches   StockMovementBatch[]
+}
+
+model Shift {
+  id               String                @id @default(uuid()) @db.Uuid
+  status           ShiftStatus           @default(OPEN)
+  openedAt         DateTime              @default(now())
+  closedAt         DateTime?
+  openedById       String                @db.Uuid
+  closedById       String?               @db.Uuid
+  openedBy         User                  @relation("ShiftOpenedBy", fields: [openedById], references: [id])
+  closedBy         User?                 @relation("ShiftClosedBy", fields: [closedById], references: [id])
+  sales            Sale[]
+  movements        StockMovement[]
+  reconciliations  ShiftReconciliation[]
+
+  @@index([status, openedAt])
+}
+
+model Sale {
+  id             String          @id @default(uuid()) @db.Uuid
+  idempotencyKey String          @unique
+  shiftId        String          @db.Uuid
+  cashierId      String          @db.Uuid
+  totalCents     Int
+  createdAt      DateTime        @default(now())
+  shift          Shift           @relation(fields: [shiftId], references: [id])
+  cashier        User            @relation(fields: [cashierId], references: [id])
+  items          SaleItem[]
+  payment        Payment?
+  movements      StockMovement[]
+
+  @@index([shiftId, createdAt])
+}
+
+model SaleItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  saleId         String  @db.Uuid
+  productId      String  @db.Uuid
+  quantity       Int
+  unitPriceCents Int
+  lineTotalCents Int
+  sale           Sale    @relation(fields: [saleId], references: [id])
+  product        Product @relation(fields: [productId], references: [id])
+
+  @@index([productId, saleId])
+}
+
+model Payment {
+  id                   String        @id @default(uuid()) @db.Uuid
+  saleId               String        @unique @db.Uuid
+  method               PaymentMethod
+  amountCents          Int
+  transactionReference String?
+  createdAt            DateTime      @default(now())
+  sale                 Sale          @relation(fields: [saleId], references: [id])
+}
+
+model StockMovement {
+  id            String            @id @default(uuid()) @db.Uuid
+  batchId       String?           @db.Uuid
+  productId     String            @db.Uuid
+  type          StockMovementType
+  quantityDelta Int
+  reason        String?
+  reference     String?
+  batch         StockMovementBatch? @relation(fields: [batchId], references: [id])
+  product       Product           @relation(fields: [productId], references: [id])
+  supplierId    String?           @db.Uuid
+  supplier      Supplier?         @relation(fields: [supplierId], references: [id])
+  createdById   String            @db.Uuid
+  createdBy     User              @relation(fields: [createdById], references: [id])
+  shiftId       String?           @db.Uuid
+  shift         Shift?            @relation(fields: [shiftId], references: [id])
+  saleId        String?           @db.Uuid
+  sale          Sale?             @relation(fields: [saleId], references: [id])
+  createdAt     DateTime          @default(now())
+
+  @@index([productId, createdAt])
+  @@index([type, createdAt])
+  @@index([createdAt])
+  @@index([batchId])
+}
+
+model StockMovementBatch {
+  id             String            @id @default(uuid()) @db.Uuid
+  idempotencyKey String            @unique
+  requestHash    String
+  type           StockMovementType
+  supplierId     String?           @db.Uuid
+  supplier       Supplier?         @relation(fields: [supplierId], references: [id])
+  reason         String?
+  reference      String?
+  createdById    String            @db.Uuid
+  createdBy      User              @relation(fields: [createdById], references: [id])
+  createdAt      DateTime          @default(now())
+  movements      StockMovement[]
+
+  @@index([type, createdAt])
+  @@index([createdAt])
+}
+
+model ShiftReconciliation {
+  id           String   @id @default(uuid()) @db.Uuid
+  shiftId      String   @db.Uuid
+  productId    String   @db.Uuid
+  expectedQty  Int
+  physicalQty  Int
+  variance     Int
+  note         String?
+  recordedById String   @db.Uuid
+  createdAt    DateTime @default(now())
+  shift        Shift    @relation(fields: [shiftId], references: [id])
+  product      Product  @relation(fields: [productId], references: [id])
+  recordedBy   User     @relation(fields: [recordedById], references: [id])
+
+  @@unique([shiftId, productId])
+}
