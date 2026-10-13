@@ -3,6 +3,7 @@ export type ProductCategory = 'ENGINE_OIL' | 'TRANSMISSION_FLUID' | 'COOLANT' | 
 export type Product = {
   id: string
   sku: string
+  barcode?: string | null
   name: string
   brand: string | null
   category: ProductCategory
@@ -18,6 +19,7 @@ export type Product = {
 
 export type ProductInput = {
   sku: string
+  barcode?: string | null
   name: string
   brand: string | null
   category: ProductCategory
@@ -63,6 +65,11 @@ export async function createProduct(product: ProductInput) {
 
 export async function updateProduct(id: string, product: ProductInput) {
   return request<{ product: Product }>(`/api/products/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(product) })
+}
+
+export async function findProductByBarcode(code: string) {
+  const result = await request<{ product: Product }>(`/api/products/barcode/${encodeURIComponent(code)}`)
+  return result.product
 }
 
 export const productCategoryLabels: Record<ProductCategory, string> = {

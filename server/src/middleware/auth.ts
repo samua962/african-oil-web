@@ -39,16 +39,23 @@ export const requireAuth: RequestHandler = async (_request, response, next) => {
 
     const user = await prisma.user.findUnique({
       where: { id: claims.sub },
-      select: { id: true, name: true, username: true, role: true, active: true },
+      select: { id: true, name: true, username: true, role: true, active: true, tokenVersion: true },
     })
 
-    if (!user?.active) {
+    // A password reset bumps tokenVersion, revoking all older sessions.
+    const claimVersion = typeof claims.tv === 'number' ? claims.tv : 0
+    if (!user?.active || user.tokenVersion !== claimVersion) {
       response.clearCookie(sessionCookieName, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' })
       response.status(401).json({ error: 'Authentication required.' })
       return
     }
 
-    response.locals.authUser = user satisfies AuthenticatedUser
+    response.locals.authUser = {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      role: user.role,
+    } satisfies AuthenticatedUser
     next()
   } catch {
     response.clearCookie(sessionCookieName, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' })

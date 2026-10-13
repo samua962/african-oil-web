@@ -2,6 +2,7 @@ import { ProductCategory, Role } from '@prisma/client'
 import { Router } from 'express'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
+import { writeAudit } from '../lib/audit.js'
 
 const router = Router()
 const categories = Object.values(ProductCategory)
@@ -24,6 +25,11 @@ function productInput(body: Record<string, unknown>, partial: boolean) {
   if (required('name')) {
     if (typeof body.name !== 'string' || body.name.trim().length < 2 || body.name.trim().length > 120) return null
     data.name = body.name.trim()
+  }
+  // Barcode is optional, so it is only validated when supplied.
+  if ('barcode' in body) {
+    if (body.barcode !== null && body.barcode !== '' && (typeof body.barcode !== 'string' || !/^[A-Za-z0-9._-]{4,40}$/.test(body.barcode.trim()))) return null
+    data.barcode = typeof body.barcode === 'string' && body.barcode.trim() ? body.barcode.trim() : null
   }
   if (required('brand')) {
     if (body.brand !== null && (typeof body.brand !== 'string' || body.brand.trim().length > 80)) return null
@@ -68,6 +74,7 @@ router.get('/', requireAuth, async (request, response) => {
     ...(query ? {
       OR: [
         { sku: { contains: query, mode: 'insensitive' as const } },
+        { barcode: { equals: query } },
         { name: { contains: query, mode: 'insensitive' as const } },
         { brand: { contains: query, mode: 'insensitive' as const } },
       ],
@@ -86,6 +93,17 @@ router.get('/', requireAuth, async (request, response) => {
   response.json({ products: safeProducts, page, pageSize, total, totalPages: Math.ceil(total / pageSize) })
 })
 
+router.get('/barcode/:code', requireAuth, async (request, response) => {
+  const code = String(request.params.code).trim().slice(0, 40)
+  const product = await prisma.product.findFirst({ where: { active: true, OR: [{ barcode: code }, { sku: code.toUpperCase() }] } })
+  if (!product) {
+    response.status(404).json({ error: 'No product matches that barcode.' })
+    return
+  }
+  const { costCents, ...safe } = product
+  response.json({ product: response.locals.authUser.role === Role.CASHIER ? safe : product })
+})
+
 router.post('/', requireAuth, requireRole(...editableRoles), async (request, response) => {
   if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body)) {
     response.status(400).json({ error: 'Provide valid product details.' })
@@ -98,11 +116,21 @@ router.post('/', requireAuth, requireRole(...editableRoles), async (request, res
   }
 
   try {
-    const product = await prisma.product.create({ data: data as never })
+    const product = await prisma.$transaction(async (transaction) => {
+      const created = await transaction.product.create({ data: data as never })
+      const activeShift = await transaction.shift.findFirst({ where: { status: 'OPEN' }, select: { id: true } })
+      if (activeShift) {
+        await transaction.shiftOpeningStock.create({
+          data: { shiftId: activeShift.id, productId: created.id, openingQuantity: 0 },
+        })
+      }
+      return created
+    })
+    await writeAudit({ actorId: response.locals.authUser.id, action: 'PRODUCT_CREATED', entity: 'Product', entityId: product.id, details: { sku: product.sku, name: product.name }, request })
     response.status(201).json({ product })
   } catch (error) {
     if (isUniqueConstraintError(error)) {
-      response.status(409).json({ error: 'A product with that SKU already exists.' })
+      response.status(409).json({ error: 'A product with that SKU or barcode already exists.' })
       return
     }
     throw error
@@ -126,7 +154,18 @@ router.patch('/:id', requireAuth, requireRole(...editableRoles), async (request,
   }
 
   try {
+    const before = await prisma.product.findUnique({ where: { id: productId } })
     const product = await prisma.product.update({ where: { id: productId }, data: data as never })
+    if (before) {
+      // Record only the fields that actually changed.
+      const changes: Record<string, { from: unknown; to: unknown }> = {}
+      for (const key of Object.keys(data) as (keyof typeof before)[]) {
+        if (before[key] !== product[key]) changes[key] = { from: before[key], to: product[key] }
+      }
+      if (Object.keys(changes).length > 0) {
+        await writeAudit({ actorId: response.locals.authUser.id, action: 'PRODUCT_UPDATED', entity: 'Product', entityId: product.id, details: { sku: product.sku, changes } as never, request })
+      }
+    }
     response.json({ product })
   } catch (error) {
     if (isUniqueConstraintError(error)) {

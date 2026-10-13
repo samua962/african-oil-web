@@ -41,26 +41,124 @@ enum StockMovementType {
   REVERSAL
 }
 
+enum AuthTokenPurpose {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+}
+
+enum SaleStatus {
+  COMPLETED
+  VOIDED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  actorId   String?  @db.Uuid
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
+  ip        String?
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id])
+  @@index([createdAt])
+  @@index([entity, entityId])
+  @@index([actorId, createdAt])
+}
+
+model ProductBatch {
+  id                String    @id @default(uuid()) @db.Uuid
+  productId         String    @db.Uuid
+  lotNumber         String?
+  expiryDate        DateTime? @db.Date
+  quantityReceived  Int
+  quantityRemaining Int
+  receivedAt        DateTime  @default(now())
+  product           Product   @relation(fields: [productId], references: [id])
+
+  @@index([productId, expiryDate])
+  @@index([expiryDate])
+}
+
+model PurchaseOrder {
+  id          String              @id @default(uuid()) @db.Uuid
+  supplierId  String              @db.Uuid
+  status      PurchaseOrderStatus @default(DRAFT)
+  notes       String?
+  createdById String              @db.Uuid
+  createdAt   DateTime            @default(now())
+  orderedAt   DateTime?
+  receivedAt  DateTime?
+  supplier    Supplier            @relation(fields: [supplierId], references: [id])
+  createdBy   User                @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
+  items       PurchaseOrderItem[]
+
+  @@index([status, createdAt])
+}
+
+model PurchaseOrderItem {
+  id            String        @id @default(uuid()) @db.Uuid
+  orderId       String        @db.Uuid
+  productId     String        @db.Uuid
+  quantity      Int
+  unitCostCents Int
+  order         PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+
+  @@unique([orderId, productId])
+}
+
 model User {
-  id              String                @id @default(uuid()) @db.Uuid
-  name            String
-  username        String                @unique
-  passwordHash    String
-  role            Role                  @default(CASHIER)
-  active          Boolean               @default(true)
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  openedShifts    Shift[]               @relation("ShiftOpenedBy")
-  closedShifts    Shift[]               @relation("ShiftClosedBy")
-  sales           Sale[]
-  stockMovements  StockMovement[]
-  movementBatches StockMovementBatch[]
-  reconciliations ShiftReconciliation[]
+  id               String                @id @default(uuid()) @db.Uuid
+  name             String
+  username         String                @unique
+  email            String?               @unique
+  emailVerifiedAt  DateTime?
+  tokenVersion     Int                   @default(0)
+  failedLoginCount Int                   @default(0)
+  lockedUntil      DateTime?
+  passwordHash     String
+  role             Role                  @default(CASHIER)
+  active           Boolean               @default(true)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  openedShifts     Shift[]               @relation("ShiftOpenedBy")
+  closedShifts     Shift[]               @relation("ShiftClosedBy")
+  sales            Sale[]                @relation("SaleCashier")
+  voidedSales      Sale[]                @relation("SaleVoidedBy")
+  auditLogs        AuditLog[]
+  purchaseOrders   PurchaseOrder[]       @relation("PurchaseOrderCreatedBy")
+  stockMovements   StockMovement[]
+  movementBatches  StockMovementBatch[]
+  reconciliations  ShiftReconciliation[]
+  authTokens       AuthToken[]
+}
+
+model AuthToken {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  purpose   AuthTokenPurpose
+  tokenHash String           @unique
+  email     String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
 }
 
 model Product {
   id              String                @id @default(uuid()) @db.Uuid
   sku             String                @unique
+  barcode         String?               @unique
   name            String
   brand           String?
   category        ProductCategory
@@ -74,6 +172,9 @@ model Product {
   updatedAt       DateTime              @updatedAt
   movements       StockMovement[]
   saleItems       SaleItem[]
+  openingStocks   ShiftOpeningStock[]
+  batches         ProductBatch[]
+  purchaseItems   PurchaseOrderItem[]
   reconciliations ShiftReconciliation[]
 
   @@index([category, active])
@@ -81,26 +182,33 @@ model Product {
 }
 
 model Supplier {
-  id        String          @id @default(uuid()) @db.Uuid
-  name      String
-  phone     String?
-  createdAt DateTime        @default(now())
-  receipts  StockMovement[]
-  batches   StockMovementBatch[]
+  id             String               @id @default(uuid()) @db.Uuid
+  name           String
+  phone          String?
+  createdAt      DateTime             @default(now())
+  receipts       StockMovement[]
+  batches        StockMovementBatch[]
+  purchaseOrders PurchaseOrder[]
 }
 
 model Shift {
-  id               String                @id @default(uuid()) @db.Uuid
-  status           ShiftStatus           @default(OPEN)
-  openedAt         DateTime              @default(now())
-  closedAt         DateTime?
-  openedById       String                @db.Uuid
-  closedById       String?               @db.Uuid
-  openedBy         User                  @relation("ShiftOpenedBy", fields: [openedById], references: [id])
-  closedBy         User?                 @relation("ShiftClosedBy", fields: [closedById], references: [id])
-  sales            Sale[]
-  movements        StockMovement[]
-  reconciliations  ShiftReconciliation[]
+  id                String                @id @default(uuid()) @db.Uuid
+  status            ShiftStatus           @default(OPEN)
+  openedAt          DateTime              @default(now())
+  closedAt          DateTime?
+  openedById        String                @db.Uuid
+  closedById        String?               @db.Uuid
+  openedBy          User                  @relation("ShiftOpenedBy", fields: [openedById], references: [id])
+  closedBy          User?                 @relation("ShiftClosedBy", fields: [closedById], references: [id])
+  openingFloatCents Int                   @default(0)
+  cashCountedCents  Int?
+  cashExpectedCents Int?
+  cashVarianceCents Int?
+  sales             Sale[]
+  movements         StockMovement[]
+  movementBatches   StockMovementBatch[]
+  openingStocks     ShiftOpeningStock[]
+  reconciliations   ShiftReconciliation[]
 
   @@index([status, openedAt])
 }
@@ -108,12 +216,18 @@ model Shift {
 model Sale {
   id             String          @id @default(uuid()) @db.Uuid
   idempotencyKey String          @unique
+  requestHash    String?
   shiftId        String          @db.Uuid
   cashierId      String          @db.Uuid
   totalCents     Int
+  status         SaleStatus      @default(COMPLETED)
+  voidedAt       DateTime?
+  voidedById     String?         @db.Uuid
+  voidReason     String?
   createdAt      DateTime        @default(now())
   shift          Shift           @relation(fields: [shiftId], references: [id])
-  cashier        User            @relation(fields: [cashierId], references: [id])
+  cashier        User            @relation("SaleCashier", fields: [cashierId], references: [id])
+  voidedBy       User?           @relation("SaleVoidedBy", fields: [voidedById], references: [id])
   items          SaleItem[]
   payment        Payment?
   movements      StockMovement[]
@@ -145,24 +259,24 @@ model Payment {
 }
 
 model StockMovement {
-  id            String            @id @default(uuid()) @db.Uuid
-  batchId       String?           @db.Uuid
-  productId     String            @db.Uuid
+  id            String              @id @default(uuid()) @db.Uuid
+  batchId       String?             @db.Uuid
+  productId     String              @db.Uuid
   type          StockMovementType
   quantityDelta Int
   reason        String?
   reference     String?
   batch         StockMovementBatch? @relation(fields: [batchId], references: [id])
-  product       Product           @relation(fields: [productId], references: [id])
-  supplierId    String?           @db.Uuid
-  supplier      Supplier?         @relation(fields: [supplierId], references: [id])
-  createdById   String            @db.Uuid
-  createdBy     User              @relation(fields: [createdById], references: [id])
-  shiftId       String?           @db.Uuid
-  shift         Shift?            @relation(fields: [shiftId], references: [id])
-  saleId        String?           @db.Uuid
-  sale          Sale?             @relation(fields: [saleId], references: [id])
-  createdAt     DateTime          @default(now())
+  product       Product             @relation(fields: [productId], references: [id])
+  supplierId    String?             @db.Uuid
+  supplier      Supplier?           @relation(fields: [supplierId], references: [id])
+  createdById   String              @db.Uuid
+  createdBy     User                @relation(fields: [createdById], references: [id])
+  shiftId       String?             @db.Uuid
+  shift         Shift?              @relation(fields: [shiftId], references: [id])
+  saleId        String?             @db.Uuid
+  sale          Sale?               @relation(fields: [saleId], references: [id])
+  createdAt     DateTime            @default(now())
 
   @@index([productId, createdAt])
   @@index([type, createdAt])
@@ -177,6 +291,8 @@ model StockMovementBatch {
   type           StockMovementType
   supplierId     String?           @db.Uuid
   supplier       Supplier?         @relation(fields: [supplierId], references: [id])
+  shiftId        String?           @db.Uuid
+  shift          Shift?            @relation(fields: [shiftId], references: [id])
   reason         String?
   reference      String?
   createdById    String            @db.Uuid
@@ -203,4 +319,16 @@ model ShiftReconciliation {
   recordedBy   User     @relation(fields: [recordedById], references: [id])
 
   @@unique([shiftId, productId])
+}
+
+model ShiftOpeningStock {
+  id              String  @id @default(uuid()) @db.Uuid
+  shiftId         String  @db.Uuid
+  productId       String  @db.Uuid
+  openingQuantity Int
+  shift           Shift   @relation(fields: [shiftId], references: [id])
+  product         Product @relation(fields: [productId], references: [id])
+
+  @@unique([shiftId, productId])
+  @@index([productId, shiftId])
 }

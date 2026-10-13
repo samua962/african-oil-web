@@ -1,7 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowLeft, CheckCircle2, LoaderCircle, LockKeyhole, UserRound } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import africanOilLogo from '../asset/african_oil_ethiopia_logo.png'
+import { CheckCircle2, LoaderCircle, LockKeyhole, UserRound } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { updateProfile } from './api/profile'
 
@@ -33,8 +31,8 @@ export default function ProfilePage() {
       setError('The new passwords do not match.')
       return
     }
-    if (newPassword && newPassword.length < 8) {
-      setError('Your new password must be at least 8 characters.')
+    if (newPassword && newPassword.length < 12) {
+      setError('Your new password must be at least 12 characters.')
       return
     }
 
@@ -58,12 +56,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F5F7FC] text-[#202638]">
-      <header className="flex h-[68px] items-center justify-between border-b border-[#E4E8F0] bg-white px-4 sm:px-7 lg:px-10">
-        <Link to="/" aria-label="Back to dashboard"><img src={africanOilLogo} alt="African Oil Ethiopia" className="h-auto w-[156px] object-contain" /></Link>
-        <Link to="/" className="inline-flex h-9 items-center gap-1.5 rounded-md border border-[#DDE2EC] px-3 text-[12px] font-semibold text-[#1B449C] hover:bg-[#F3F6FC]"><ArrowLeft size={14} /> Dashboard</Link>
-      </header>
-
+    <main className="min-h-[calc(100vh-68px)] bg-[#F5F7FC] text-[#202638]">
       <div className="mx-auto max-w-[760px] px-4 pb-12 pt-7 sm:px-7 lg:pt-10">
         <div className="mb-6"><p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#1B449C]">Account settings</p><h1 className="mt-1.5 text-[27px] font-bold">My profile</h1><p className="mt-1 text-[12px] text-[#7C8493]">Update your account details and sign-in password.</p></div>
 

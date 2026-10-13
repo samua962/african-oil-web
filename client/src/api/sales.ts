@@ -17,6 +17,8 @@ export type Sale = {
   id: string
   idempotencyKey: string
   totalCents: number
+  status: 'COMPLETED' | 'VOIDED'
+  voidReason?: string | null
   createdAt: string
   cashier: { id: string; name: string; username: string }
   payment: { method: PaymentMethod; amountCents: number }
@@ -48,4 +50,8 @@ export async function createSale(data: SaleInput) {
 
 export async function listSales() {
   return request<{ sales: Sale[] }>('/api/sales')
+}
+
+export async function voidSale(id: string, reason: string) {
+  return request<{ ok: true }>(`/api/sales/${encodeURIComponent(id)}/void`, { method: 'POST', body: JSON.stringify({ reason }) })
 }

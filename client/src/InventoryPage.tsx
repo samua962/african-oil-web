@@ -1,7 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, LoaderCircle, PackagePlus, Pencil, Plus, Search, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import africanOilLogo from '../asset/african_oil_ethiopia_logo.png'
+import { ChevronDown, ChevronLeft, ChevronRight, LoaderCircle, PackagePlus, Pencil, Plus, Search, X } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { createProduct, listProducts, productCategoryLabels, updateProduct, type Product, type ProductCategory, type ProductInput } from './api/products'
 
@@ -10,6 +8,7 @@ const birr = new Intl.NumberFormat('en-ET', { minimumFractionDigits: 2, maximumF
 
 const emptyForm = (): ProductInput => ({
   sku: '',
+  barcode: '',
   name: '',
   brand: '',
   category: 'ENGINE_OIL',
@@ -75,6 +74,7 @@ export default function InventoryPage() {
     setIsCreating(false)
     setForm({
       sku: product.sku,
+      barcode: product.barcode ?? '',
       name: product.name,
       brand: product.brand ?? '',
       category: product.category,
@@ -93,6 +93,7 @@ export default function InventoryPage() {
     const payload = {
       ...form,
       sku: form.sku.trim().toUpperCase(),
+      barcode: form.barcode?.trim() || null,
       name: form.name.trim(),
       brand: form.brand?.trim() || null,
       packageSize: form.packageSize?.trim() || null,
@@ -121,17 +122,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F5F7FC] text-[#202638]">
-      <header className="flex h-[68px] items-center justify-between border-b border-[#E4E8F0] bg-white px-4 sm:px-7 lg:px-10">
-        <Link to="/" className="flex items-center gap-3" aria-label="Back to dashboard">
-          <img src={africanOilLogo} alt="African Oil Ethiopia" className="h-auto w-[156px] object-contain" />
-        </Link>
-        <div className="flex items-center gap-3 text-[12px] text-[#69758A]">
-          <span className="hidden sm:inline">{user?.name} · {user?.role.replaceAll('_', ' ').toLowerCase()}</span>
-          <Link to="/" className="inline-flex h-9 items-center gap-1.5 rounded-md border border-[#DDE2EC] px-3 font-semibold text-[#1B449C] hover:bg-[#F3F6FC]"><ArrowLeft size={14} /> Dashboard</Link>
-        </div>
-      </header>
-
+    <main className="min-h-[calc(100vh-68px)] bg-[#F5F7FC] text-[#202638]">
       <div className="mx-auto max-w-[1440px] px-4 pb-10 pt-7 sm:px-7 lg:px-10 lg:pt-9">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -191,6 +182,7 @@ export default function InventoryPage() {
           <div className="mb-5 flex items-start justify-between gap-4"><div><h2 id="product-form-title" className="text-[19px] font-bold text-[#202638]">{editingProduct ? 'Edit product' : 'Add product'}</h2><p className="mt-1 text-[11px] text-[#7C8493]">Catalog details and ETB prices</p></div><button onClick={() => { setEditingProduct(null); setIsCreating(false); setFormError('') }} aria-label="Close" className="flex size-8 items-center justify-center rounded text-[#7C8493] hover:bg-[#F3F5F9]"><X size={17} /></button></div>
           <form onSubmit={saveProduct} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="SKU"><input required maxLength={40} value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} placeholder="OIL-TQ-001" /></FormField>
+            <FormField label="Barcode (optional)"><input maxLength={40} pattern="[A-Za-z0-9._\-]{4,40}" title="4-40 letters, numbers, dot, dash or underscore" value={form.barcode ?? ''} onChange={(event) => setForm({ ...form, barcode: event.target.value })} placeholder="Scan or type barcode" /></FormField>
             <FormField label="Product name"><input required minLength={2} maxLength={120} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Product name" /></FormField>
             <FormField label="Brand"><input maxLength={80} value={form.brand ?? ''} onChange={(event) => setForm({ ...form, brand: event.target.value })} placeholder="Brand (optional)" /></FormField>
             <FormField label="Category"><select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as ProductCategory })}>{categoryOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></FormField>

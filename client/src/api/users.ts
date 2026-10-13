@@ -4,6 +4,8 @@ export type ManagedUser = {
   id: string
   name: string
   username: string
+  email: string | null
+  emailVerifiedAt: string | null
   role: UserRole
   active: boolean
   createdAt: string
@@ -12,6 +14,7 @@ export type ManagedUser = {
 export type ManagedUserInput = {
   name: string
   username: string
+  email?: string
   role: UserRole
   password?: string
   active?: boolean
@@ -41,4 +44,7 @@ export async function createUser(user: ManagedUserInput) {
 
 export async function updateUser(id: string, user: Partial<ManagedUserInput>) {
   return request(`/api/users/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(user) })
+}
+export async function resendVerification(id: string) {
+  return request(`/api/users/${encodeURIComponent(id)}/verification`, { method: 'POST' })
 }

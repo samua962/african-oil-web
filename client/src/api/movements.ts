@@ -2,7 +2,7 @@ import type { Product } from './products'
 
 export type Supplier = { id: string; name: string; phone: string | null }
 export type MovementType = 'RECEIPT' | 'LOSS'
-export type MovementLineInput = { productId: string; quantity: number }
+export type MovementLineInput = { productId: string; quantity: number; lotNumber?: string; expiryDate?: string }
 export type MovementInput = {
   idempotencyKey: string
   items: MovementLineInput[]

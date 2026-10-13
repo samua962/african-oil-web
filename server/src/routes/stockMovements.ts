@@ -3,6 +3,7 @@ import { Prisma, Role, StockMovementType } from '@prisma/client'
 import { Router, type Request, type Response } from 'express'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
+import { writeAudit } from '../lib/audit.js'
 
 const router = Router()
 const editRoles = [Role.STORE_MANAGER, Role.ADMIN]
@@ -19,7 +20,7 @@ type MovementInput = {
   supplierId?: string
   reference: string | null
   reason: string | null
-  items: { productId: string; quantity: number }[]
+  items: { productId: string; quantity: number; lotNumber?: string; expiryDate?: string }[]
 }
 
 router.get('/', requireAuth, async (request, response) => {
@@ -77,6 +78,11 @@ async function submitMovement(request: Request, response: Response, type: StockM
         if (!supplier) throw new MovementError(404, 'Supplier not found.')
       }
 
+      const activeShift = await transaction.shift.findFirst({
+        where: { status: 'OPEN' },
+        select: { id: true },
+      })
+
       const products = await transaction.product.findMany({
         where: { id: { in: parsed.items.map((item) => item.productId) }, active: true },
         select: { id: true, name: true, sku: true, quantityOnHand: true },
@@ -90,6 +96,7 @@ async function submitMovement(request: Request, response: Response, type: StockM
           requestHash,
           type,
           supplierId: parsed.supplierId,
+          shiftId: activeShift?.id,
           reason: parsed.reason,
           reference: parsed.reference,
           createdById,
@@ -120,10 +127,31 @@ async function submitMovement(request: Request, response: Response, type: StockM
             reason: parsed.reason,
             reference: parsed.reference,
             supplierId: parsed.supplierId,
+            shiftId: activeShift?.id,
             createdById,
           },
         })
+        if (type === StockMovementType.RECEIPT && (item.lotNumber || item.expiryDate)) {
+          await transaction.productBatch.create({
+            data: {
+              productId: item.productId,
+              lotNumber: item.lotNumber,
+              expiryDate: item.expiryDate ? new Date(`${item.expiryDate}T00:00:00Z`) : null,
+              quantityReceived: item.quantity,
+              quantityRemaining: item.quantity,
+            },
+          })
+        }
       }
+
+      await writeAudit({
+        actorId: createdById,
+        action: type === StockMovementType.RECEIPT ? 'STOCK_RECEIVED' : 'STOCK_LOSS_RECORDED',
+        entity: 'StockMovementBatch',
+        entityId: batch.id,
+        details: { reason: parsed.reason, reference: parsed.reference, lines: parsed.items.length, units: parsed.items.reduce((sum, item) => sum + item.quantity, 0) },
+        request,
+      }, transaction)
 
       const createdBatch = await transaction.stockMovementBatch.findUniqueOrThrow({
         where: { id: batch.id },
@@ -181,7 +209,20 @@ function parseInput(body: unknown, type: StockMovementType): MovementInput {
     }
     if (seenProducts.has(item.productId)) throw new MovementError(400, 'A product can appear only once in a movement.')
     seenProducts.add(item.productId)
-    parsedItems.push({ productId: item.productId, quantity: item.quantity as number })
+    if (item.lotNumber !== undefined && item.lotNumber !== null && item.lotNumber !== '' && (typeof item.lotNumber !== 'string' || item.lotNumber.trim().length > 60)) {
+      throw new MovementError(400, 'Lot numbers must be 60 characters or fewer.')
+    }
+    if (item.expiryDate !== undefined && item.expiryDate !== null && item.expiryDate !== '' && (typeof item.expiryDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(item.expiryDate) || Number.isNaN(Date.parse(item.expiryDate)))) {
+      throw new MovementError(400, 'Expiry dates must use the YYYY-MM-DD format.')
+    }
+    const lotNumber = typeof item.lotNumber === 'string' ? item.lotNumber.trim() : ''
+    const expiryDate = typeof item.expiryDate === 'string' ? item.expiryDate : ''
+    parsedItems.push({
+      productId: item.productId,
+      quantity: item.quantity as number,
+      ...(type === StockMovementType.RECEIPT && lotNumber ? { lotNumber } : {}),
+      ...(type === StockMovementType.RECEIPT && expiryDate ? { expiryDate } : {}),
+    })
   }
 
   parsedItems.sort((left, right) => left.productId.localeCompare(right.productId))

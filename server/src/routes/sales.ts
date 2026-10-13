@@ -1,10 +1,13 @@
+import { createHash } from 'node:crypto'
 import { PaymentMethod, Prisma, Role, StockMovementType } from '@prisma/client'
 import { Router } from 'express'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
+import { writeAudit } from '../lib/audit.js'
 
 const router = Router()
 const saleRoles = [Role.CASHIER, Role.STORE_MANAGER, Role.ADMIN]
+const managerRoles = [Role.STORE_MANAGER, Role.ADMIN]
 const paymentMethods = Object.values(PaymentMethod)
 
 class SaleError extends Error {
@@ -36,6 +39,10 @@ router.post('/', requireAuth, requireRole(...saleRoles), async (request, respons
   try {
     const parsed = parseInput(request.body)
     const currentUserId = response.locals.authUser.id as string
+    const requestHash = createHash('sha256').update(JSON.stringify({
+      paymentMethod: parsed.paymentMethod,
+      items: [...parsed.items].sort((left, right) => left.productId.localeCompare(right.productId)),
+    })).digest('hex')
 
     const result = await prisma.$transaction(async (transaction) => {
       const existingSale = await transaction.sale.findUnique({
@@ -43,16 +50,18 @@ router.post('/', requireAuth, requireRole(...saleRoles), async (request, respons
         include: { items: { include: { product: { select: { id: true, sku: true, name: true } } } }, payment: true, cashier: { select: { id: true, name: true, username: true } } },
       })
       if (existingSale) {
+        if (existingSale.requestHash !== requestHash || existingSale.cashierId !== currentUserId) {
+          throw new SaleError(409, 'This retry key belongs to a different sale. Start a new checkout.')
+        }
         return { sale: existingSale, replayed: true }
       }
 
       const activeShift = await transaction.shift.findFirst({
-        where: { status: 'OPEN', openedById: currentUserId },
+        where: { status: 'OPEN' },
         orderBy: { openedAt: 'desc' },
       })
-      const shift = activeShift ?? await transaction.shift.create({
-        data: { status: 'OPEN', openedById: currentUserId },
-      })
+      if (!activeShift) throw new SaleError(409, 'Open a shift before recording sales.')
+      const shift = activeShift
 
       const productIds = parsed.items.map((item) => item.productId)
       const products = await transaction.product.findMany({
@@ -88,6 +97,7 @@ router.post('/', requireAuth, requireRole(...saleRoles), async (request, respons
       const sale = await transaction.sale.create({
         data: {
           idempotencyKey: parsed.idempotencyKey,
+          requestHash,
           shiftId: shift.id,
           cashierId: currentUserId,
           totalCents,
@@ -110,10 +120,14 @@ router.post('/', requireAuth, requireRole(...saleRoles), async (request, respons
       })
 
       for (const item of saleItems) {
-        await transaction.product.update({
-          where: { id: item.productId },
+        const stockUpdate = await transaction.product.updateMany({
+          where: { id: item.productId, active: true, quantityOnHand: { gte: item.quantity } },
           data: { quantityOnHand: { decrement: item.quantity } },
         })
+        if (stockUpdate.count !== 1) {
+          const product = productMap.get(item.productId)!
+          throw new SaleError(409, `Stock for ${product.name} changed during checkout. Refresh the sale and try again.`)
+        }
         await transaction.stockMovement.create({
           data: {
             productId: item.productId,
@@ -126,6 +140,7 @@ router.post('/', requireAuth, requireRole(...saleRoles), async (request, respons
             shiftId: shift.id,
           },
         })
+        await consumeBatches(transaction, item.productId, item.quantity)
       }
 
       return { sale, replayed: false }
@@ -148,6 +163,70 @@ router.post('/', requireAuth, requireRole(...saleRoles), async (request, respons
     throw error
   }
 })
+
+// Voiding restores stock and removes the sale from shift cash totals; only allowed while its shift is open.
+router.post('/:id/void', requireAuth, requireRole(...managerRoles), async (request, response) => {
+  const saleId = request.params.id
+  const reason = typeof request.body?.reason === 'string' ? request.body.reason.trim() : ''
+  if (typeof saleId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(saleId) || reason.length < 3 || reason.length > 300) {
+    response.status(400).json({ error: 'Provide a reason of 3 to 300 characters.' })
+    return
+  }
+
+  const actorId = response.locals.authUser.id as string
+  try {
+    await prisma.$transaction(async (transaction) => {
+      const sale = await transaction.sale.findUnique({ where: { id: saleId }, include: { items: true, shift: { select: { status: true } } } })
+      if (!sale) throw new SaleError(404, 'Sale not found.')
+      if (sale.status === 'VOIDED') throw new SaleError(409, 'This sale is already voided.')
+      if (sale.shift.status !== 'OPEN') throw new SaleError(409, 'This sale belongs to a closed shift. Record a stock adjustment instead.')
+
+      await transaction.sale.update({ where: { id: sale.id }, data: { status: 'VOIDED', voidedAt: new Date(), voidedById: actorId, voidReason: reason } })
+      for (const item of sale.items) {
+        await transaction.product.update({ where: { id: item.productId }, data: { quantityOnHand: { increment: item.quantity } } })
+        await transaction.stockMovement.create({
+          data: {
+            productId: item.productId,
+            type: StockMovementType.REVERSAL,
+            quantityDelta: item.quantity,
+            reason: `VOID: ${reason}`,
+            reference: sale.id,
+            saleId: sale.id,
+            createdById: actorId,
+            shiftId: sale.shiftId,
+          },
+        })
+      }
+      await writeAudit({ actorId, action: 'SALE_VOIDED', entity: 'Sale', entityId: sale.id, details: { totalCents: sale.totalCents, reason }, request }, transaction)
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    response.json({ ok: true })
+  } catch (error) {
+    if (error instanceof SaleError) {
+      response.status(error.status).json({ error: error.message })
+      return
+    }
+    if (isPrismaError(error, 'P2034')) {
+      response.status(409).json({ error: 'The sale changed while voiding. Refresh and try again.' })
+      return
+    }
+    throw error
+  }
+})
+
+// First-expired-first-out; batches are informational, so stock never fails because of them.
+async function consumeBatches(transaction: Prisma.TransactionClient, productId: string, quantity: number) {
+  const batches = await transaction.productBatch.findMany({
+    where: { productId, quantityRemaining: { gt: 0 } },
+    orderBy: [{ expiryDate: { sort: 'asc', nulls: 'last' } }, { receivedAt: 'asc' }],
+  })
+  let remaining = quantity
+  for (const batch of batches) {
+    if (remaining <= 0) break
+    const take = Math.min(batch.quantityRemaining, remaining)
+    await transaction.productBatch.update({ where: { id: batch.id }, data: { quantityRemaining: { decrement: take } } })
+    remaining -= take
+  }
+}
 
 function parseInput(body: unknown): SaleInput {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {

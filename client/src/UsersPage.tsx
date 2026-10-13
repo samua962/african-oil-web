@@ -1,9 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowLeft, LoaderCircle, Plus, Shield, UserRound, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import africanOilLogo from '../asset/african_oil_ethiopia_logo.png'
+import { LoaderCircle, Plus, Shield, UserRound, X } from 'lucide-react'
 import { useAuth, type UserRole } from './AuthContext'
-import { createUser, listUsers, updateUser, type ManagedUser, type ManagedUserInput } from './api/users'
+import { createUser, listUsers, resendVerification, updateUser, type ManagedUser, type ManagedUserInput } from './api/users'
 
 const roles: { value: UserRole; label: string }[] = [
   { value: 'CASHIER', label: 'Cashier' },
@@ -11,7 +9,7 @@ const roles: { value: UserRole; label: string }[] = [
   { value: 'ADMIN', label: 'Administrator' },
 ]
 
-const emptyForm = (): ManagedUserInput => ({ name: '', username: '', role: 'CASHIER', password: '' })
+const emptyForm = (): ManagedUserInput => ({ name: '', username: '', email: '', role: 'CASHIER', password: '' })
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth()
@@ -52,7 +50,7 @@ export default function UsersPage() {
 
   const beginEdit = (managedUser: ManagedUser) => {
     setEditingUser(managedUser)
-    setForm({ name: managedUser.name, username: managedUser.username, role: managedUser.role, password: '' })
+    setForm({ name: managedUser.name, username: managedUser.username, email: managedUser.email ?? '', role: managedUser.role, password: '' })
     setFormError('')
     setIsCreating(false)
   }
@@ -67,7 +65,7 @@ export default function UsersPage() {
     event.preventDefault()
     setSaving(true)
     setFormError('')
-    const input = { ...form, name: form.name.trim(), username: form.username.trim().toLowerCase() }
+    const input = { ...form, name: form.name.trim(), username: form.username.trim().toLowerCase(), email: (form.email ?? '').trim() }
     if (!input.password) delete input.password
 
     try {
@@ -80,6 +78,16 @@ export default function UsersPage() {
       setFormError(cause instanceof Error ? cause.message : 'Could not save user.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const sendVerification = async (id: string) => {
+    setFormError('')
+    try {
+      await resendVerification(id)
+      setFormError('Verification email sent.')
+    } catch (cause) {
+      setFormError(cause instanceof Error ? cause.message : 'Could not send verification email.')
     }
   }
 
@@ -97,12 +105,7 @@ export default function UsersPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F5F7FC] text-[#202638]">
-      <header className="flex h-[68px] items-center justify-between border-b border-[#E4E8F0] bg-white px-4 sm:px-7 lg:px-10">
-        <Link to="/" aria-label="Back to dashboard"><img src={africanOilLogo} alt="African Oil Ethiopia" className="h-auto w-[156px] object-contain" /></Link>
-        <Link to="/" className="inline-flex h-9 items-center gap-1.5 rounded-md border border-[#DDE2EC] px-3 text-[12px] font-semibold text-[#1B449C] hover:bg-[#F3F6FC]"><ArrowLeft size={14} /> Dashboard</Link>
-      </header>
-
+    <main className="min-h-[calc(100vh-68px)] bg-[#F5F7FC] text-[#202638]">
       <div className="mx-auto max-w-[1100px] px-4 pb-10 pt-7 sm:px-7 lg:px-10 lg:pt-9">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div><p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#1B449C]">Administration</p><h1 className="mt-1.5 text-[27px] font-bold">User management</h1><p className="mt-1 text-[12px] text-[#7C8493]">Manage station access and account roles.</p></div>
@@ -132,6 +135,12 @@ export default function UsersPage() {
           <form onSubmit={save} className="space-y-4">
             <Field label="Full name"><input required minLength={2} maxLength={100} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Name" /></Field>
             <Field label="Username"><input required minLength={3} maxLength={40} pattern="[A-Za-z0-9._-]+" autoCapitalize="none" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} placeholder="e.g. abel.cashier" /></Field>
+            <Field label="Email (for password reset)"><input type="email" maxLength={200} value={form.email ?? ''} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="name@example.com" /></Field>
+            {editingUser?.email && editingUser.email === form.email && (
+              <p className="-mt-2 flex items-center justify-between gap-2 text-[11px]">
+                {editingUser.emailVerifiedAt ? <span className="text-[#1E6B3A]">Email verified</span> : <><span className="text-[#B82A1D]">Not verified: reset links are disabled</span><button type="button" className="font-semibold text-[#1B449C] hover:underline" onClick={() => sendVerification(editingUser.id)}>Resend verification</button></>}
+              </p>
+            )}
             <Field label="Role"><select disabled={editingUser?.id === currentUser?.id} value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as UserRole })}>{roles.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}</select></Field>
             {editingUser?.id === currentUser?.id && <p className="-mt-2 text-[10px] text-[#8C94A2]">Your own administrator role cannot be changed.</p>}
             <Field label={editingUser ? 'New password (leave blank to keep current)' : 'Temporary password (minimum 12 characters)'}><input required={!editingUser} minLength={12} maxLength={200} autoComplete="new-password" type="password" value={form.password ?? ''} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder={editingUser ? 'Leave blank to keep current' : 'Set initial password'} /></Field>
