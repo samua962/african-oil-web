@@ -1,6 +1,9 @@
 import cors from 'cors'
 import express from 'express'
 import cookieParser from 'cookie-parser'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import authRoutes from './routes/auth.js'
 import auditRoutes from './routes/audit.js'
 import dashboardRoutes from './routes/dashboard.js'
@@ -35,5 +38,15 @@ export function createApp() {
   app.use('/api/audit', auditRoutes)
   app.use('/api/reports', reportRoutes)
   app.use('/api/purchase-orders', purchaseOrderRoutes)
+
+  const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist')
+  const clientIndex = path.join(clientDist, 'index.html')
+  if (fs.existsSync(clientIndex)) {
+    app.use(express.static(clientDist))
+    app.get(/^\/(?!api(?:\/|$)).*/, (_request, response) => {
+      response.sendFile(clientIndex)
+    })
+  }
+
   return app
 }

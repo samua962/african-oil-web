@@ -13,12 +13,14 @@ import SalesPage from './SalesPage'
 import ShiftPage from './ShiftPage'
 import StockMovementsPage from './StockMovementsPage'
 import UsersPage from './UsersPage'
+import { LanguageProvider, useLanguage } from './LanguageContext'
 
 function AppRoutes() {
   const { user, loading } = useAuth()
+  const { t } = useLanguage()
 
   if (loading) {
-    return <main className="flex min-h-screen items-center justify-center bg-[#F5F7FC] text-[13px] text-[#69758A]">Loading account…</main>
+    return <main className="flex min-h-screen items-center justify-center bg-[#F5F7FC] text-[13px] text-[#69758A]">{t('Loading account…')}</main>
   }
 
   return (
@@ -45,5 +47,5 @@ function AppRoutes() {
 }
 
 export default function App() {
-  return <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><AuthProvider><AppRoutes /></AuthProvider></BrowserRouter>
+  return <LanguageProvider><BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><AuthProvider><AppRoutes /></AuthProvider></BrowserRouter></LanguageProvider>
 }

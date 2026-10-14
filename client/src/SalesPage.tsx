@@ -7,6 +7,7 @@ import { findProductByBarcode, listProducts, type Product } from './api/products
 import { getCurrentShift, type CurrentShift } from './api/shifts'
 import { usePrint } from './usePrint'
 import { ReceiptView } from './PrintViews'
+import { useLanguage } from './LanguageContext'
 
 type Line = { productId: string; quantity: number }
 
@@ -21,6 +22,7 @@ const money = new Intl.NumberFormat('en-ET', { minimumFractionDigits: 2, maximum
 
 export default function SalesPage() {
   const { user } = useAuth()
+  const { t } = useLanguage()
   const [products, setProducts] = useState<Product[]>([])
   const [sales, setSales] = useState<Sale[]>([])
   const [currentShift, setCurrentShift] = useState<CurrentShift | null>(null)
@@ -203,9 +205,9 @@ export default function SalesPage() {
       <div className="mx-auto max-w-[1180px] px-4 pb-12 pt-7 sm:px-7 lg:px-10 lg:pt-9">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#1B449C]">Point of sale</p>
-            <h1 className="mt-1.5 text-[27px] font-bold">Sales checkout</h1>
-            <p className="mt-1 text-[12px] text-[#7C8493]">Process quick sales and update stock automatically.</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#1B449C]">{t('Point of sale')}</p>
+            <h1 className="mt-1.5 text-[27px] font-bold">{t('Sales checkout')}</h1>
+            <p className="mt-1 text-[12px] text-[#7C8493]">{t('Process quick sales and update stock automatically.')}</p>
           </div>
           <div className="text-right text-[12px] text-[#7C8493]">
             <p>Cashier</p>
@@ -219,10 +221,10 @@ export default function SalesPage() {
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.85fr)]">
           <form onSubmit={submit} className="space-y-4 rounded-lg border border-[#E3E7EF] bg-white p-5 shadow-[0_2px_8px_rgba(25,43,77,0.035)] sm:p-6">
-            <div className="flex items-center justify-between gap-4"><div><h2 className="text-[14px] font-semibold">Sale items</h2><p className="mt-1 text-[11px] text-[#8992A1]">Current stock is checked before every sale.</p></div><button type="button" onClick={addLine} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#DDE2EC] px-2.5 text-[10px] font-semibold text-[#1B449C] hover:bg-[#F3F6FC]"><Plus size={13} />Add item</button></div>
+            <div className="flex items-center justify-between gap-4"><div><h2 className="text-[14px] font-semibold">{t('Sale items')}</h2><p className="mt-1 text-[11px] text-[#8992A1]">{t('Current stock is checked before every sale.')}</p></div><button type="button" onClick={addLine} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#DDE2EC] px-2.5 text-[10px] font-semibold text-[#1B449C] hover:bg-[#F3F6FC]"><Plus size={13} />{t('Add item')}</button></div>
 
             <label className="block">
-              <span className="mb-1.5 block text-[11px] font-semibold text-[#3E485B]">Quick add by name, SKU or barcode</span>
+              <span className="mb-1.5 block text-[11px] font-semibold text-[#3E485B]">{t('Quick add by name, SKU or barcode')}</span>
               <span className="relative block">
                 <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#929BAC]" />
                 <input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void handleEnter() } }} placeholder="Scan barcode or search a product" className="h-10 w-full rounded-md border border-[#DDE2EC] pl-9 pr-3 text-[12px] outline-none focus:border-[#1B449C] focus:ring-2 focus:ring-[#E6ECF9]" />
@@ -235,27 +237,27 @@ export default function SalesPage() {
             {lines.map((line, index) => {
               const product = productMap.get(line.productId)
               return <div key={index} className="grid grid-cols-1 gap-3 rounded-md border border-[#EDF0F5] p-3 sm:grid-cols-[minmax(0,1.5fr)_150px_40px]">
-                <Field label="Product"><select required value={line.productId} onChange={(event) => updateLine(index, { productId: event.target.value, quantity: Number.isFinite(line.quantity) ? line.quantity : 1 })}><option value="">Select product</option>{products.map((item) => <option key={item.id} value={item.id} disabled={lines.some((other, otherIndex) => otherIndex !== index && other.productId === item.id)}>{item.name} · {item.sku} · {item.quantityOnHand} in stock</option>)}</select></Field>
-                <Field label="Quantity"><input type="number" min={1} max={product ? product.quantityOnHand : 1000} value={line.quantity} onChange={(event) => updateLine(index, { quantity: Math.max(1, Number(event.target.value) || 1) })} /></Field>
+                <Field label={t('Product')}><select required value={line.productId} onChange={(event) => updateLine(index, { productId: event.target.value, quantity: Number.isFinite(line.quantity) ? line.quantity : 1 })}><option value="">{t('Select product')}</option>{products.map((item) => <option key={item.id} value={item.id} disabled={lines.some((other, otherIndex) => otherIndex !== index && other.productId === item.id)}>{item.name} · {item.sku} · {item.quantityOnHand} {t('in stock')}</option>)}</select></Field>
+                <Field label={t('Quantity')}><input type="number" min={1} max={product ? product.quantityOnHand : 1000} value={line.quantity} onChange={(event) => updateLine(index, { quantity: Math.max(1, Number(event.target.value) || 1) })} /></Field>
                 <button type="button" onClick={() => removeLine(index)} aria-label="Remove line" className="flex h-10 items-center justify-center rounded-md text-[#8992A1] hover:bg-[#FCF0EE] hover:text-[#B82A1D]"><Trash2 size={15} /></button>
               </div>
             })}
 
             <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2">
-              <Field label="Payment method"><select value={paymentMethod} onChange={(event) => { setPaymentMethod(event.target.value as PaymentMethod); setSaleIdempotencyKey(crypto.randomUUID()) }}>{paymentMethods.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}</select></Field>
+              <Field label={t('Payment method')}><select value={paymentMethod} onChange={(event) => { setPaymentMethod(event.target.value as PaymentMethod); setSaleIdempotencyKey(crypto.randomUUID()) }}>{paymentMethods.map((method) => <option key={method.value} value={method.value}>{t(method.label)}</option>)}</select></Field>
               <div className="flex items-end">
                 <div className="w-full rounded-md border border-[#E3E7EF] bg-[#F9FAFC] px-3 py-3 text-right">
-                  <p className="text-[10px] uppercase tracking-[0.7px] text-[#8992A1]">Total</p>
+                  <p className="text-[10px] uppercase tracking-[0.7px] text-[#8992A1]">{t('Total')}</p>
                   <p className="mt-1 text-[22px] font-bold text-[#202638]">{money.format(subtotal / 100)} ETB</p>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2"><button disabled={saving || loading || !currentShift} className="inline-flex h-10 items-center gap-2 rounded-md bg-[#1B449C] px-4 text-[11px] font-semibold text-white hover:bg-[#163981] disabled:opacity-60"><ShoppingCart size={15} />{saving ? 'Processing…' : 'Complete sale'}</button></div>
+            <div className="flex justify-end pt-2"><button disabled={saving || loading || !currentShift} className="inline-flex h-10 items-center gap-2 rounded-md bg-[#1B449C] px-4 text-[11px] font-semibold text-white hover:bg-[#163981] disabled:opacity-60"><ShoppingCart size={15} />{saving ? t('Processing…') : t('Complete sale')}</button></div>
           </form>
 
           <aside className="rounded-lg border border-[#E3E7EF] bg-white p-5 shadow-[0_2px_8px_rgba(25,43,77,0.035)] sm:p-6">
-            <div className="mb-4 flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-md bg-[#EDF2FB] text-[#1B449C]"><ArrowUpRight size={16} /></span><h2 className="text-[14px] font-semibold">Recent sales</h2></div>
+            <div className="mb-4 flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-md bg-[#EDF2FB] text-[#1B449C]"><ArrowUpRight size={16} /></span><h2 className="text-[14px] font-semibold">{t('Recent sales')}</h2></div>
             {sales.length === 0 ? <p className="text-[12px] text-[#7C8493]">No sales recorded yet.</p> : <div className="space-y-3">{sales.slice(0, 6).map((sale) => <div key={sale.id} className={`rounded-md border p-3 ${sale.status === 'VOIDED' ? 'border-[#F1D0CB] bg-[#FCF7F6]' : 'border-[#EDF0F5]'}`}><div className="flex items-start justify-between gap-2"><div><p className="text-[11px] font-semibold text-[#354055]">{sale.cashier.name}{sale.status === 'VOIDED' && <span className="ml-2 rounded bg-[#FCE4E1] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#B82A1D]">Voided</span>}</p><p className="mt-0.5 text-[10px] text-[#929BAC]">{new Intl.DateTimeFormat('en-ET', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(sale.createdAt))}</p></div><span className={`text-[11px] font-semibold ${sale.status === 'VOIDED' ? 'text-[#B82A1D] line-through' : 'text-[#1B449C]'}`}>{money.format(sale.totalCents / 100)} ETB</span></div><div className="mt-2 space-y-1">{sale.items.slice(0, 3).map((item) => <div key={item.id} className="flex items-center justify-between text-[10px] text-[#667187]"><span>{item.product.name}</span><span>{item.quantity} × {money.format(item.unitPriceCents / 100)}</span></div>)}</div>{sale.status === 'VOIDED' ? sale.voidReason && <p className="mt-2 text-[10px] text-[#B82A1D]">Reason: {sale.voidReason}</p> : <div className="mt-2.5 flex items-center gap-3 text-[10px] font-semibold"><button type="button" onClick={() => receipt.print(sale)} className="inline-flex items-center gap-1 text-[#1B449C] hover:underline"><Printer size={12} />Receipt</button>{canVoid && <button type="button" onClick={() => { setVoidingId(voidingId === sale.id ? null : sale.id); setVoidReason('') }} className="inline-flex items-center gap-1 text-[#B82A1D] hover:underline"><Ban size={12} />Void</button>}</div>}{voidingId === sale.id && <div className="mt-2.5 space-y-2"><input value={voidReason} onChange={(event) => setVoidReason(event.target.value)} maxLength={300} placeholder="Reason for void (required)" className="h-9 w-full rounded-md border border-[#DDE2EC] px-2.5 text-[11px] outline-none focus:border-[#B82A1D]" /><button type="button" disabled={voidReason.trim().length < 3} onClick={() => void confirmVoid(sale.id)} className="h-8 rounded-md bg-[#B82A1D] px-3 text-[10px] font-semibold text-white disabled:opacity-50">Confirm void</button></div>}</div>)}</div>}
           </aside>
         </div>

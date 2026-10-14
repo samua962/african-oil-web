@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { ArrowDownLeft, ArrowUpRight, LoaderCircle, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { createMovement, createSupplier, listMovements, listSuppliers, type MovementType, type StockMovement, type Supplier } from './api/movements'
+import { useLanguage } from './LanguageContext'
 import { listProducts, type Product } from './api/products'
 
 type Line = { productId: string; quantity: number; lotNumber?: string; expiryDate?: string }
@@ -9,6 +10,7 @@ const newKey = () => crypto.randomUUID()
 const dateTime = new Intl.DateTimeFormat('en-ET', { dateStyle: 'medium', timeStyle: 'short' })
 
 export default function StockMovementsPage() {
+  const { t } = useLanguage()
   const { user } = useAuth()
   const [mode, setMode] = useState<MovementType | 'HISTORY'>('RECEIPT')
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -119,12 +121,12 @@ export default function StockMovementsPage() {
   return (
     <main className="min-h-[calc(100vh-68px)] bg-[#F5F7FC] text-[#202638]">
       <div className="mx-auto max-w-[1180px] px-4 pb-12 pt-7 sm:px-7 lg:px-10 lg:pt-9">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#1B449C]">Inventory control</p><h1 className="mt-1.5 text-[27px] font-bold">Stock movements</h1><p className="mt-1 text-[12px] text-[#7C8493]">Record supplier receipts and loss adjustments.</p></div><div className="text-right"><p className="text-[11px] text-[#7C8493]">Signed in as</p><p className="text-[12px] font-semibold text-[#3E485B]">{user?.name}</p></div></div>
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#1B449C]">{t('Inventory control')}</p><h1 className="mt-1.5 text-[27px] font-bold">{t('Stock movements')}</h1><p className="mt-1 text-[12px] text-[#7C8493]">{t('Record supplier receipts and loss adjustments.')}</p></div><div className="text-right"><p className="text-[11px] text-[#7C8493]">{t('Signed in as')}</p><p className="text-[12px] font-semibold text-[#3E485B]">{user?.name}</p></div></div>
 
         <div className="mb-4 flex w-fit max-w-full gap-1 overflow-x-auto rounded-md border border-[#DDE2EC] bg-white p-1">
-          <ModeButton active={mode === 'RECEIPT'} onClick={() => modeChanged('RECEIPT')}><ArrowDownLeft size={14} />Receive stock</ModeButton>
-          <ModeButton active={mode === 'LOSS'} onClick={() => modeChanged('LOSS')}><ArrowUpRight size={14} />Record loss</ModeButton>
-          <ModeButton active={mode === 'HISTORY'} onClick={() => modeChanged('HISTORY')}><RefreshCw size={14} />Movement history</ModeButton>
+          <ModeButton active={mode === 'RECEIPT'} onClick={() => modeChanged('RECEIPT')}><ArrowDownLeft size={14} />{t('Receive stock')}</ModeButton>
+          <ModeButton active={mode === 'LOSS'} onClick={() => modeChanged('LOSS')}><ArrowUpRight size={14} />{t('Record loss')}</ModeButton>
+          <ModeButton active={mode === 'HISTORY'} onClick={() => modeChanged('HISTORY')}><RefreshCw size={14} />{t('Movement history')}</ModeButton>
         </div>
 
         {error && <p role="alert" className="mb-4 rounded-md border border-[#F1D0CB] bg-[#FCF0EE] px-4 py-3 text-[12px] text-[#A72419]">{error}</p>}
@@ -133,10 +135,10 @@ export default function StockMovementsPage() {
         {mode !== 'HISTORY' ? (
           <form onSubmit={submitMovement} className="space-y-4">
             {mode === 'RECEIPT' ? <section className="rounded-lg border border-[#E3E7EF] bg-white p-5 shadow-[0_2px_8px_rgba(25,43,77,0.035)] sm:p-6">
-              <div className="mb-4 flex items-start justify-between gap-3"><div><h2 className="text-[14px] font-semibold">Shipment details</h2><p className="mt-1 text-[11px] text-[#8992A1]">Supplier and delivery reference for this receipt.</p></div><button type="button" onClick={() => { setSupplierError(''); setCreatingSupplier(true) }} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-[#DDE2EC] px-2.5 text-[10px] font-semibold text-[#1B449C] hover:bg-[#F3F6FC]"><Plus size={13} />Add supplier</button></div>
+              <div className="mb-4 flex items-start justify-between gap-3"><div><h2 className="text-[14px] font-semibold">{t('Shipment details')}</h2><p className="mt-1 text-[11px] text-[#8992A1]">{t('Supplier and delivery reference for this receipt.')}</p></div><button type="button" onClick={() => { setSupplierError(''); setCreatingSupplier(true) }} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-[#DDE2EC] px-2.5 text-[10px] font-semibold text-[#1B449C] hover:bg-[#F3F6FC]"><Plus size={13} />{t('Add supplier')}</button></div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Supplier"><select required value={supplierId} onChange={(event) => setSupplierId(event.target.value)}><option value="">Select supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></Field>
-                <Field label="Invoice / delivery reference (optional)"><input maxLength={100} value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Invoice number or delivery note" /></Field>
+                <Field label={t('Supplier')}><select required value={supplierId} onChange={(event) => setSupplierId(event.target.value)}><option value="">{t('Select supplier')}</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></Field>
+                <Field label={t('Invoice / delivery reference (optional)')}><input maxLength={100} value={reference} onChange={(event) => setReference(event.target.value)} placeholder={t('Invoice number or delivery note')} /></Field>
               </div>
               {suppliers.length === 0 && <p className="mt-3 text-[11px] text-[#B56A00]">Add a supplier before recording the first receipt.</p>}
             </section> : <section className="rounded-lg border border-[#E3E7EF] bg-white p-5 shadow-[0_2px_8px_rgba(25,43,77,0.035)] sm:p-6">
@@ -148,9 +150,9 @@ export default function StockMovementsPage() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EDF0F5] px-5 py-4 sm:px-6"><div><h2 className="text-[14px] font-semibold">Product lines</h2><p className="mt-1 text-[11px] text-[#8992A1]">{mode === 'RECEIPT' ? 'Quantities received from this supplier.' : 'Quantities removed from available stock.'}</p></div><button type="button" onClick={addLine} disabled={products.length === 0} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#DDE2EC] px-2.5 text-[10px] font-semibold text-[#1B449C] hover:bg-[#F3F6FC] disabled:opacity-50"><Plus size={13} />Add product</button></div>
               {loading ? <div className="flex h-32 items-center justify-center gap-2 text-[12px] text-[#7C8493]"><LoaderCircle size={16} className="animate-spin" />Loading products</div> : products.length === 0 ? <p className="px-5 py-9 text-center text-[12px] text-[#7C8493]">Create products in Inventory before recording stock.</p> : <div className="divide-y divide-[#EDF0F5]">
                 {items.map((item, index) => <div key={index} className={`grid grid-cols-1 items-end gap-3 px-5 py-4 sm:px-6 ${mode === 'RECEIPT' ? 'sm:grid-cols-[minmax(0,1fr)_100px_130px_150px_40px]' : 'sm:grid-cols-[minmax(0,1fr)_150px_40px]'}`}>
-                  <Field label={index === 0 ? 'Product' : `Product ${index + 1}`}><select required value={item.productId} onChange={(event) => updateLine(index, { productId: event.target.value })}><option value="">Select product</option>{products.map((product) => <option key={product.id} value={product.id} disabled={items.some((other, otherIndex) => otherIndex !== index && other.productId === product.id)}>{product.name} · {product.sku} · {product.quantityOnHand} in stock</option>)}</select></Field>
-                  <Field label="Quantity"><input required type="number" min="1" max={mode === 'LOSS' ? products.find((product) => product.id === item.productId)?.quantityOnHand ?? 1_000_000 : 1_000_000} step="1" value={item.quantity} onChange={(event) => updateLine(index, { quantity: Number(event.target.value) })} /></Field>
-                  {mode === 'RECEIPT' && <><Field label="Lot no."><input maxLength={60} value={item.lotNumber ?? ''} onChange={(event) => updateLine(index, { lotNumber: event.target.value })} placeholder="Optional" /></Field><Field label="Expiry date"><input type="date" value={item.expiryDate ?? ''} onChange={(event) => updateLine(index, { expiryDate: event.target.value })} /></Field></>}
+                  <Field label={index === 0 ? t('Product') : `${t('Product')} ${index + 1}`}><select required value={item.productId} onChange={(event) => updateLine(index, { productId: event.target.value })}><option value="">{t('Select product')}</option>{products.map((product) => <option key={product.id} value={product.id} disabled={items.some((other, otherIndex) => otherIndex !== index && other.productId === product.id)}>{product.name} · {product.sku} · {product.quantityOnHand} {t('in stock')}</option>)}</select></Field>
+                  <Field label={t('Quantity')}><input required type="number" min="1" max={mode === 'LOSS' ? products.find((product) => product.id === item.productId)?.quantityOnHand ?? 1_000_000 : 1_000_000} step="1" value={item.quantity} onChange={(event) => updateLine(index, { quantity: Number(event.target.value) })} /></Field>
+                  {mode === 'RECEIPT' && <><Field label={t('Lot no.')}><input maxLength={60} value={item.lotNumber ?? ''} onChange={(event) => updateLine(index, { lotNumber: event.target.value })} placeholder={t('Optional')} /></Field><Field label={t('Expiry date')}><input type="date" value={item.expiryDate ?? ''} onChange={(event) => updateLine(index, { expiryDate: event.target.value })} /></Field></>}
                   <button type="button" disabled={items.length === 1} onClick={() => removeLine(index)} title="Remove line" aria-label="Remove product line" className="mb-0.5 flex size-9 items-center justify-center rounded-md text-[#8992A1] hover:bg-[#FCF0EE] hover:text-[#B82A1D] disabled:opacity-30"><Trash2 size={15} /></button>
                 </div>)}
               </div>}
