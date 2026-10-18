@@ -9,6 +9,7 @@ import auditRoutes from './routes/audit.js'
 import dashboardRoutes from './routes/dashboard.js'
 import productRoutes from './routes/products.js'
 import purchaseOrderRoutes from './routes/purchaseOrders.js'
+import publicPreviewRoutes from './routes/publicPreview.js'
 import reportRoutes from './routes/reports.js'
 import saleRoutes from './routes/sales.js'
 import shiftRoutes from './routes/shifts.js'
@@ -38,6 +39,7 @@ export function createApp() {
   app.use('/api/audit', auditRoutes)
   app.use('/api/reports', reportRoutes)
   app.use('/api/purchase-orders', purchaseOrderRoutes)
+  app.use('/api/public', publicPreviewRoutes)
 
   const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist')
   const clientIndex = path.join(clientDist, 'index.html')

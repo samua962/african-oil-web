@@ -22,6 +22,7 @@ import africanOilLogo from '../asset/african_oil_ethiopia_logo.png'
 import { useAuth } from './AuthContext'
 import { useLanguage } from './LanguageContext'
 import LanguageSwitcher from './LanguageSwitcher'
+import ThemeSwitcher from './ThemeSwitcher'
 
 const pageInfo: Record<string, { title: string; section: string }> = {
   '/': { title: 'Store overview', section: 'Operations' },
@@ -123,6 +124,7 @@ export default function AppShell() {
           </div>
           <div className="flex shrink-0 items-center gap-3 sm:gap-5">
             <LanguageSwitcher compact />
+            <ThemeSwitcher />
             <div className={`flex items-center gap-1.5 text-[10px] font-medium ${online && apiOnline ? 'text-[#1B449C]' : 'text-[#B82A1D]'}`} title={connectionLabel}>
               {online && apiOnline ? <Wifi size={14} /> : <WifiOff size={14} />}<span className="hidden sm:inline">{connectionLabel}</span>
             </div>

@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import { prisma } from '../lib/prisma.js'
-import { createProduct, createUser, loggedIn, resetDatabase, startServer, type Client } from './helpers.js'
+import { Client, createProduct, createUser, loggedIn, resetDatabase, startServer, type Client as ClientType } from './helpers.js'
 
 describe('purchasing, reports and barcodes', () => {
   let server: Awaited<ReturnType<typeof startServer>>
-  let manager: Client
-  let admin: Client
-  let cashier: Client
+  let manager: ClientType
+  let admin: ClientType
+  let cashier: ClientType
   let lowProduct: Awaited<ReturnType<typeof createProduct>>
   let supplierId: string
 
@@ -33,6 +33,18 @@ describe('purchasing, reports and barcodes', () => {
     assert.equal(response.status, 200)
     const line = response.json.suggestions.find((item: { sku: string }) => item.sku === 'LOW-1')
     assert.ok(line && line.suggestedQuantity >= 1)
+  })
+
+  it('serves a public login preview without exposing product or sales details', async () => {
+    const result = await new Client(server.base).request('GET', '/api/public/preview')
+    assert.equal(result.status, 200)
+    assert.ok(result.json.stock.some((item: { category: string }) => item.category === 'ENGINE_OIL'))
+    assert.equal(typeof result.json.sales.hasSalesToday, 'boolean')
+    assert.equal(typeof result.json.sales.activeDaysThisWeek, 'number')
+    const serialized = JSON.stringify(result.json)
+    assert.equal(serialized.includes('LOW-1'), false)
+    assert.equal(serialized.includes('costCents'), false)
+    assert.equal(serialized.includes('salesCents'), false)
   })
 
   it('receives a purchase order into stock only once', async () => {

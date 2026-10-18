@@ -28,6 +28,10 @@ export default function ShiftPage() {
   const report = usePrint((closed: ClosedShift) => <ShiftReportView shift={closed} />)
 
   const canCloseCurrent = user?.role !== 'CASHIER' || shift?.openedBy.id === user?.id
+  const roleName = user?.role === 'CASHIER' ? 'Cashier' : user?.role === 'STORE_MANAGER' ? 'Store manager' : 'Administrator'
+  const roleGuidance = user?.role === 'CASHIER'
+    ? 'Cashiers close the shift they opened. A manager or admin can close it if needed.'
+    : 'Managers and admins can close any open shift after counting its cash and stock.'
   const productVarianceCount = useMemo(() => shift?.products.filter((product) => {
     const entered = physicalCounts[product.productId]
     return entered !== undefined && entered !== '' && Number(entered) !== product.expectedQuantity
@@ -109,13 +113,27 @@ export default function ShiftPage() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#1B449C]">{t('Cashier controls')}</p>
             <h1 className="mt-1.5 text-[27px] font-bold">{t('Shift reconciliation')}</h1>
-            <p className="mt-1 text-[12px] text-[#7C8493]">{t('Review payment totals, count stock, and close the till.')}</p>
+            <p className="mt-1 text-[12px] text-[#7C8493]">{t('Start the till, record sales, then count cash and stock to finish.')}</p>
           </div>
           <button onClick={refresh} disabled={loading} className="inline-flex h-9 items-center gap-2 rounded-md border border-[#DDE2EC] bg-white px-3 text-[11px] font-semibold text-[#1B449C] disabled:opacity-50"><RefreshCw size={14} />{t('Refresh')}</button>
         </div>
 
         {error && <p role="alert" className="mb-4 rounded-md border border-[#F1D0CB] bg-[#FCF0EE] px-4 py-3 text-[12px] text-[#A72419]">{error}</p>}
         {message && <p role="status" className="mb-4 flex items-start gap-2 rounded-md border border-[#D7E4D9] bg-[#F2F8F2] px-4 py-3 text-[12px] text-[#326B45]"><CheckCircle2 size={15} className="mt-0.5 shrink-0" />{message}</p>}
+
+        <section aria-label={t('Shift steps')} className="mb-5 border-y border-[#E3E7EF] bg-white px-4 py-4 sm:px-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5">
+            {[
+              ['1', 'Open shift', 'Enter the cash already in the till.'],
+              ['2', 'Record sales', 'Use POS. Sales and stock update automatically.'],
+              ['3', 'Finish shift', 'Count actual cash and every product, then close.'],
+            ].map(([number, title, description]) => <div key={number} className="flex items-start gap-3">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#EDF2FB] text-[11px] font-bold text-[#1B449C]">{number}</span>
+              <div><p className="text-[12px] font-semibold text-[#354055]">{t(title)}</p><p className="mt-0.5 text-[11px] leading-4 text-[#7C8493]">{t(description)}</p></div>
+            </div>)}
+          </div>
+          <p className="mt-4 border-t border-[#EDF0F5] pt-3 text-[11px] leading-5 text-[#667187]"><span className="font-semibold text-[#354055]">{t('Your role')}: {t(roleName)}. </span>{t(roleGuidance)}</p>
+        </section>
 
         {loading ? <div className="flex h-48 items-center justify-center gap-2 text-[12px] text-[#7C8493]"><LoaderCircle size={16} className="animate-spin" />Loading shift</div> : !shift ? (
           <section className="max-w-[620px] rounded-lg border border-[#E3E7EF] bg-white p-5 shadow-[0_2px_8px_rgba(25,43,77,0.035)] sm:p-7">
@@ -133,18 +151,19 @@ export default function ShiftPage() {
                 <div className="text-right"><p className="text-[10px] text-[#8992A1]">{t('Opening float')}</p><p className="text-[14px] font-bold text-[#354055]">ETB {etb.format(shift.openingFloatCents / 100)}</p></div>
               </div>
               <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4"><Summary label={t('Sales')} value={`${shift.saleCount}`} /><Summary label={t('Sales total')} value={`ETB ${etb.format(shift.salesTotalCents / 100)}`} /><Summary label={t('Expected cash')} value={`ETB ${etb.format(shift.expectedCashCents / 100)}`} /><Summary label={t('Count variances')} value={`${productVarianceCount}`} warning={productVarianceCount > 0} /></div>
-              <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">{methods.map((method) => <div key={method} className="rounded-md bg-[#F9FAFC] px-3 py-2.5"><p className="text-[10px] text-[#8992A1]">{methodNames[method]}</p><p className="mt-1 text-[12px] font-semibold text-[#354055]">ETB {etb.format(shift.paymentTotals[method] / 100)}</p></div>)}</div>
+              <p className="mt-2 text-[10px] leading-4 text-[#7C8493]">{t('Expected cash is opening float plus cash payments. Telebirr, CBE Birr, and card are not cash.')}</p>
+              <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">{methods.map((method) => <div key={method} className="rounded-md bg-[#F9FAFC] px-3 py-2.5"><p className="text-[10px] text-[#8992A1]">{t(methodNames[method])}</p><p className="mt-1 text-[12px] font-semibold text-[#354055]">ETB {etb.format(shift.paymentTotals[method] / 100)}</p></div>)}</div>
             </section>
 
             {canCloseCurrent ? (
               <form onSubmit={handleClose} className="rounded-lg border border-[#E3E7EF] bg-white shadow-[0_2px_8px_rgba(25,43,77,0.035)]">
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#EDF0F5] px-5 py-4 sm:px-6"><div><h2 className="text-[14px] font-semibold">Physical stock count</h2><p className="mt-1 text-[11px] text-[#8992A1]">Expected quantities include this shift’s sales, receipts, and losses.</p></div><span className="inline-flex items-center gap-1.5 text-[10px] text-[#667187]"><ShieldAlert size={14} className="text-[#E38505]" />Variances are saved for audit</span></div>
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#EDF0F5] px-5 py-4 sm:px-6"><div><h2 className="text-[14px] font-semibold">{t('Count products')}</h2><p className="mt-1 text-[11px] text-[#8992A1]">{t('Count what is physically on the shelf. Expected stock is calculated from opening stock, sales, receipts, and losses.')}</p></div><span className="inline-flex items-center gap-1.5 text-[10px] text-[#667187]"><ShieldAlert size={14} className="text-[#E38505]" />{t('Differences are saved')}</span></div>
                 {shift.products.length === 0 ? <p className="px-5 py-8 text-[12px] text-[#7C8493]">No active products to count.</p> : (
-                  <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left"><thead><tr className="bg-[#F9FAFC] text-[10px] uppercase tracking-wide text-[#8992A1]"><th className="px-5 py-3">Product</th><th className="px-3 py-3">At opening</th><th className="px-3 py-3">Expected</th><th className="px-3 py-3">Physical count</th><th className="px-5 py-3">Variance</th></tr></thead><tbody className="divide-y divide-[#EDF0F5]">{shift.products.map((product) => { const value = physicalCounts[product.productId] ?? ''; const variance = value === '' ? null : Number(value) - product.expectedQuantity; return <tr key={product.productId}><td className="px-5 py-3"><p className="text-[11px] font-semibold text-[#354055]">{product.name}</p><p className="mt-0.5 text-[10px] text-[#929BAC]">{product.sku}{product.packageSize ? ` · ${product.packageSize}` : ''}</p></td><td className="px-3 py-3 text-[11px] text-[#667187]">{product.openingQuantity}</td><td className="px-3 py-3 text-[11px] font-semibold text-[#354055]">{product.expectedQuantity}</td><td className="px-3 py-3"><input aria-label={`Physical count for ${product.name}`} required type="number" min="0" max="1000000" step="1" value={value} onChange={(event) => setPhysicalCounts((current) => ({ ...current, [product.productId]: event.target.value }))} className="h-9 w-24 rounded-md border border-[#DDE2EC] px-2 text-[12px] outline-none focus:border-[#1B449C] focus:ring-2 focus:ring-[#E6ECF9]" /></td><td className={`px-5 py-3 text-[11px] font-bold ${variance === null || variance === 0 ? 'text-[#8992A1]' : 'text-[#B82A1D]'}`}>{variance === null ? '—' : variance > 0 ? `+${variance}` : variance}</td></tr>})}</tbody></table></div>
+                  <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left"><thead><tr className="bg-[#F9FAFC] text-[10px] uppercase tracking-wide text-[#8992A1]"><th className="px-5 py-3">{t('Product')}</th><th className="px-3 py-3">{t('At opening')}</th><th className="px-3 py-3">{t('Expected')}</th><th className="px-3 py-3">{t('Counted')}</th><th className="px-5 py-3">{t('Difference')}</th></tr></thead><tbody className="divide-y divide-[#EDF0F5]">{shift.products.map((product) => { const value = physicalCounts[product.productId] ?? ''; const variance = value === '' ? null : Number(value) - product.expectedQuantity; return <tr key={product.productId}><td className="px-5 py-3"><p className="text-[11px] font-semibold text-[#354055]">{product.name}</p><p className="mt-0.5 text-[10px] text-[#929BAC]">{product.sku}{product.packageSize ? ` · ${product.packageSize}` : ''}</p></td><td className="px-3 py-3 text-[11px] text-[#667187]">{product.openingQuantity}</td><td className="px-3 py-3 text-[11px] font-semibold text-[#354055]">{product.expectedQuantity}</td><td className="px-3 py-3"><input aria-label={`${t('Counted')} ${product.name}`} required type="number" min="0" max="1000000" step="1" value={value} onChange={(event) => setPhysicalCounts((current) => ({ ...current, [product.productId]: event.target.value }))} className="h-9 w-24 rounded-md border border-[#DDE2EC] px-2 text-[12px] outline-none focus:border-[#1B449C] focus:ring-2 focus:ring-[#E6ECF9]" /></td><td className={`px-5 py-3 text-[11px] font-bold ${variance === null || variance === 0 ? 'text-[#8992A1]' : 'text-[#B82A1D]'}`}>{variance === null ? '—' : variance > 0 ? `+${variance}` : variance}</td></tr>})}</tbody></table></div>
                 )}
-                <div className="flex flex-col gap-4 border-t border-[#EDF0F5] px-5 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-6"><Field label={`Cash counted (ETB) · expected ${etb.format(shift.expectedCashCents / 100)}`}><input required type="number" min="0" max="1000000" step="0.01" value={cashCounted} onChange={(event) => setCashCounted(event.target.value)} /></Field><button disabled={saving} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#B82A1D] px-4 text-[11px] font-semibold text-white hover:bg-[#982319] disabled:opacity-60">{saving && <LoaderCircle size={14} className="animate-spin" />}Close shift &amp; reconcile</button></div>
+                <div className="flex flex-col gap-4 border-t border-[#EDF0F5] px-5 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-6"><div><Field label={`${t('Actual cash in till (ETB)')} · ${t('Expected')}: ${etb.format(shift.expectedCashCents / 100)}`}><input required type="number" min="0" max="1000000" step="0.01" value={cashCounted} onChange={(event) => setCashCounted(event.target.value)} /></Field><p className="mt-1 text-[10px] text-[#8992A1]">{t('Count the notes and coins in the till. The difference will be shown after closing.')}</p></div><button disabled={saving} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#B82A1D] px-4 text-[11px] font-semibold text-white hover:bg-[#982319] disabled:opacity-60">{saving && <LoaderCircle size={14} className="animate-spin" />}{t('Finish shift')}</button></div>
               </form>
-            ) : <p className="rounded-md border border-[#F3D8B1] bg-[#FFF4E4] px-4 py-3 text-[12px] text-[#8B5806]">This shift was opened by another cashier. A manager can close it after the physical count.</p>}
+            ) : <p className="rounded-md border border-[#F3D8B1] bg-[#FFF4E4] px-4 py-3 text-[12px] text-[#8B5806]">{t('Another cashier opened this shift. Ask a manager or admin to count and close it.')}</p>}
           </div>
         )}
 

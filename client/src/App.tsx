@@ -14,6 +14,7 @@ import ShiftPage from './ShiftPage'
 import StockMovementsPage from './StockMovementsPage'
 import UsersPage from './UsersPage'
 import { LanguageProvider, useLanguage } from './LanguageContext'
+import { ThemeProvider } from './ThemeContext'
 
 function AppRoutes() {
   const { user, loading } = useAuth()
@@ -47,5 +48,5 @@ function AppRoutes() {
 }
 
 export default function App() {
-  return <LanguageProvider><BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><AuthProvider><AppRoutes /></AuthProvider></BrowserRouter></LanguageProvider>
+  return <ThemeProvider><LanguageProvider><BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><AuthProvider><AppRoutes /></AuthProvider></BrowserRouter></LanguageProvider></ThemeProvider>
 }

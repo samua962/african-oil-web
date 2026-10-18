@@ -5,6 +5,7 @@ import africanOilLogo from '../asset/african_oil_ethiopia_logo.png'
 import { postRecovery } from './api/recovery'
 import { useLanguage } from './LanguageContext'
 import LanguageSwitcher from './LanguageSwitcher'
+import ThemeSwitcher from './ThemeSwitcher'
 
 const inputClass = 'h-12 w-full rounded-md border border-[#D8DEEA] bg-white pl-11 pr-3 text-[13px] text-[#202638] outline-none transition placeholder:text-[#A0A7B4] hover:border-[#A9B6D0] focus:border-[#1B449C] focus:ring-2 focus:ring-[#E6ECF9]'
 const buttonClass = 'flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#1B449C] px-4 text-[13px] font-semibold text-white transition hover:bg-[#163981] focus:outline-none focus:ring-2 focus:ring-[#9CB1E0] focus:ring-offset-2 disabled:cursor-wait disabled:opacity-70'
@@ -15,7 +16,7 @@ function RecoveryCard({ title, subtitle, children }: { title: string; subtitle: 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#F5F7FC] px-5 py-8">
       <div className="w-full max-w-[440px] rounded-lg border border-[#E3E7EF] bg-white px-6 py-8 shadow-[0_18px_50px_rgba(27,68,156,0.09)] sm:px-9">
-        <div className="mb-6 flex items-start justify-between gap-3"><img src={africanOilLogo} alt="African Oil Ethiopia" className="h-auto w-[178px] object-contain" /><LanguageSwitcher compact /></div>
+        <div className="mb-6 flex items-start justify-between gap-3"><img src={africanOilLogo} alt="African Oil Ethiopia" className="h-auto w-[178px] object-contain" /><div className="flex items-center gap-2"><LanguageSwitcher compact /><ThemeSwitcher /></div></div>
         <h1 className="text-[24px] font-bold leading-tight text-[#202638]">{t(title)}</h1>
         <p className="mt-2 mb-6 text-[13px] leading-5 text-[#7C8493]">{t(subtitle)}</p>
         {children}
