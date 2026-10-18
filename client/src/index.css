@@ -162,7 +162,10 @@ button:disabled {
 :root[data-theme='dark'] [class~='bg-[#FCFCFE]'],
 :root[data-theme='dark'] [class~='bg-[#F2F5FA]'],
 :root[data-theme='dark'] [class~='bg-[#F3F5F9]'],
-:root[data-theme='dark'] [class~='bg-[#F5F6F9]'] {
+:root[data-theme='dark'] [class~='bg-[#F5F6F9]'],
+:root[data-theme='dark'] [class~='bg-[#F1F3F8]'],
+:root[data-theme='dark'] [class~='bg-[#E8ECF2]'],
+:root[data-theme='dark'] [class~='bg-[#E4E8F0]'] {
   background-color: #0F1927 !important;
 }
 
@@ -170,28 +173,66 @@ button:disabled {
   background-color: #20314A !important;
 }
 
+:root[data-theme='dark'] [class~='bg-[#FCE4E1]'],
+:root[data-theme='dark'] [class~='bg-[#FCF0EE]'],
+:root[data-theme='dark'] [class~='bg-[#FCF7F6]'] {
+  background-color: #3A222A !important;
+}
+
+:root[data-theme='dark'] [class~='bg-[#F0F8F3]'],
+:root[data-theme='dark'] [class~='bg-[#F2F8F2]'],
+:root[data-theme='dark'] [class~='bg-[#E8F5EC]'] {
+  background-color: #19352B !important;
+}
+
+:root[data-theme='dark'] [class~='bg-[#FFF2DE]'],
+:root[data-theme='dark'] [class~='bg-[#FFF4E4]'] {
+  background-color: #392D1B !important;
+}
+
+:root[data-theme='dark'] [class~='bg-[#B9C9E7]'],
+:root[data-theme='dark'] [class~='bg-[#BDCEEF]'],
+:root[data-theme='dark'] [class~='bg-[#738EBB]'] { background-color: #496285 !important; }
+
+:root[data-theme='dark'] [class*='text-[#'] { color: #C5D0E0 !important; }
 :root[data-theme='dark'] [class~='text-[#202638]'] { color: #E6EBF2 !important; }
 :root[data-theme='dark'] [class~='text-[#354055]'],
 :root[data-theme='dark'] [class~='text-[#3E485B]'],
 :root[data-theme='dark'] [class~='text-[#26344E]'] { color: #D5DDE8 !important; }
+:root[data-theme='dark'] [class~='text-[#1B449C]'] { color: #9BB9FF !important; }
+:root[data-theme='dark'] [class~='text-[#1B6B3A]'],
+:root[data-theme='dark'] [class~='text-[#1E6B3A]'],
+:root[data-theme='dark'] [class~='text-[#326B45]'] { color: #91D1A8 !important; }
+:root[data-theme='dark'] [class~='text-[#E38505]'],
+:root[data-theme='dark'] [class~='text-[#B56A00]'],
+:root[data-theme='dark'] [class~='text-[#8B5806]'],
+:root[data-theme='dark'] [class~='text-[#9A5B00]'] { color: #F4C46A !important; }
+:root[data-theme='dark'] [class~='text-[#B82A1D]'],
+:root[data-theme='dark'] [class~='text-[#A72419]'] { color: #FF9D91 !important; }
+:root[data-theme='dark'] [class~='text-[#FFC83D]'] { color: #FFC83D !important; }
 :root[data-theme='dark'] [class~='text-[#667187]'],
 :root[data-theme='dark'] [class~='text-[#69758A]'],
-:root[data-theme='dark'] [class~='text-[#59677D]'] { color: #B2BED0 !important; }
+:root[data-theme='dark'] [class~='text-[#59677D]'],
 :root[data-theme='dark'] [class~='text-[#7C8493]'],
 :root[data-theme='dark'] [class~='text-[#8992A1]'],
 :root[data-theme='dark'] [class~='text-[#929BAC]'],
-:root[data-theme='dark'] [class~='text-[#8C94A2]'] { color: #9EACBF !important; }
-:root[data-theme='dark'] [class~='text-[#1B449C]'] { color: #9BB9FF !important; }
-
-:root[data-theme='dark'] [class~='border-[#E3E7EF]'],
-:root[data-theme='dark'] [class~='border-[#E4E8F0]'],
-:root[data-theme='dark'] [class~='border-[#E8EBF2]'],
-:root[data-theme='dark'] [class~='border-[#E9EDF4]'],
+:root[data-theme='dark'] [class~='text-[#8C94A2]'] { color: #AEBBD0 !important; }
 :root[data-theme='dark'] [class~='border-[#EDF0F5]'],
 :root[data-theme='dark'] [class~='border-[#DDE2EC]'],
 :root[data-theme='dark'] [class~='border-[#D8DEEA]'] {
   border-color: #2B394D !important;
 }
+
+:root[data-theme='dark'] [class~='border-[#D7E1F5]'],
+:root[data-theme='dark'] [class~='border-[#A9B6D0]'] { border-color: #3A4A60 !important; }
+:root[data-theme='dark'] [class~='border-[#1B449C]'] { border-color: #5574B1 !important; }
+
+:root[data-theme='dark'] [class~='border-[#F1D0CB]'],
+:root[data-theme='dark'] [class~='border-[#B82A1D]'],
+:root[data-theme='dark'] [class~='border-[#E7C3BE]'] { border-color: #70424A !important; }
+:root[data-theme='dark'] [class~='border-[#D7E4D9]'],
+:root[data-theme='dark'] [class~='border-[#CFE3D6]'] { border-color: #39614A !important; }
+:root[data-theme='dark'] [class~='border-[#F3D8B1]'] { border-color: #795B2F !important; }
 
 :root[data-theme='dark'] input,
 :root[data-theme='dark'] select,
